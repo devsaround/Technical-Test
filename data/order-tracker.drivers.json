@@ -1,0 +1,39 @@
+[{
+  "_id": {
+    "$oid": "65c3b45e9610e894775bf4b2"
+  },
+  "home_location_point": {
+    "type": "Point",
+    "coordinates": [
+      4.810641748677028,
+      -159.58527943036657
+    ]
+  },
+  "driving_radius_miles": 8.71
+},
+{
+  "_id": {
+    "$oid": "65c3b45e9610e894775bf4b3"
+  },
+  "home_location_point": {
+    "type": "Point",
+    "coordinates": [
+      9.311790436322582,
+      -21.566994289609397
+    ]
+  },
+  "driving_radius_miles": 1.74
+},
+{
+  "_id": {
+    "$oid": "65c3b45e9610e894775bf4b4"
+  },
+  "home_location_point": {
+    "type": "Point",
+    "coordinates": [
+      -45.03577742053055,
+      -172.94181310772956
+    ]
+  },
+  "driving_radius_miles": 3.09
+}]
