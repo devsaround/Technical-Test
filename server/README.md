@@ -1,58 +1,182 @@
-# Order Tracker Server — Boilerplate (PR #1)
+# Order Tracker Server — Business Logic (PR #2)
 
-This is the minimal backend **boilerplate** for the technical test.
-It runs an Express + Socket.IO server and exposes a health route and a stub state route.
-**No business logic is included in this PR** (no orders, no drivers). That comes in PR #2.
+This PR builds on top of [PR #1 Boilerplate](../feat/server-boilerplate) by adding the **order and driver business logic**.  
+It implements in-memory state management, round-robin driver assignment, simulated progress, cancellation handling, and real-time streaming updates.
 
-## Tech
+---
 
-- Node.js + Express (REST)
+## Tech stack
+
+- Node.js + Express (REST APIs)
 - Socket.IO (real-time)
 - CORS enabled
-- ESM modules (`"type": "module"`)
+- In-memory storage (Maps & Arrays)
+- `uuid` for unique order IDs
 
-## Run
+---
 
-```
-bash
+## Project structure
+
+server/
+index.js # Express + Socket.IO server wiring
+state.js # core business logic (orders, drivers, scheduler, timers)
+driver.js # load and normalize drivers from JSON
+data/
+order-tracker.drivers.json
+public/
+test-client.html # optional UI for manual testing
+package.json
+.gitignore
+README.md
+
+
+---
+
+## Setup & Run
+
+```bash
 cd server
 npm install
-npm run dev / start
+npm run dev    # or: npm start
+```
+### Dependencies added in PR #2
+
+- uuid (unique order IDs)
+
+### APIs REST
+``` GET /health```
+Health check → ```{ ok: true }```
+
+```GET /api/state```
+
+Returns full snapshot of orders and drivers.
+
+```
+{
+  "orders": [...],
+  "drivers": [...]
+}
 ```
 
-# Health check route
-http://localhost:8001/health → ```{ "ok": true }```
+```POST /api/orders```
 
-# state: 
-http://localhost:8001/api/state → ```{ "orders": [], "drivers": [] }```
+Create a new order.
 
-# Open in browser to see the state event (socket.io) 
-http://localhost:8001/test-client.html
+If a driver is available, assigns immediately and starts progress.
 
-# APIs in PR #1
+If no driver is available, queues order as pending.
 
-# REST
+Response:
+```{ "orderId": "some-uuid" }```
 
-- GET /health → ```{ ok: true }```
+```POST /api/orders/:id/cancel```
 
-- GET /api/state → ```{ orders: [], drivers: [] }```
+#### Cancel an existing order.
 
-# Socket.IO
+If pending → removed from queue.
 
-Server → Client
+If in-progress → frees driver, driver may pick up a pending order.
 
-- ```state``` (emitted on connect): ```{ orders: [], drivers: [] }```
+Response:
+```{ "success": true }```
 
-Client → Server
+#### Socket.IO
+Open this in browser to test socket.io and view progress —
+``` http://localhost:8001/test-client.html ```
 
-- ```get_state``` (server replies with state)
+Click ```create order ```
 
-# What’s NOT here (will be PR #2)
+#### Server → Client events
 
-- Creating/canceling orders
+```state``` — full snapshot of orders + drivers
 
-- Driver assignment + queue + pending queue
+```tick``` — periodic progress updates (order + driver progress)
 
-- Progress timers + real-time ticks
+```create``` — new order created
 
-- Loading drivers from the JSON file
+```cancel``` — order canceled
+
+```complete``` — order finished
+
+
+#### Client → Server events
+
+```create_order``` — create a new order (same as REST)
+
+```cancel_order``` — cancel order by ID
+
+```get_state``` — request fresh snapshot
+
+#### Order lifecycle
+
+#### Create order
+
+Status: ```new```
+
+If driver available → immediately ```assigned```
+
+If no driver → ```pending```
+
+#### Assigned
+
+Status: ```assigned```
+
+Progress starts via timer
+
+Driver marked unavailable
+
+#### In progress
+
+Status: ```in_progress```
+
+Progress increments 2–6% every 0.8s
+
+Both order and driver progress kept in sync
+
+#### Completed
+
+Status: ```completed```
+
+Driver freed, becomes available
+
+Scheduler assigns next pending order (if any)
+
+#### Canceled
+
+Status: ```canceled```
+
+If pending: removed from queue
+
+If in-progress: driver freed, next pending order assigned
+
+
+### Key logic
+
+- ```createOrder()```: creates new order with UUID
+
+- ```assignDriver(order)```: assigns next available driver
+
+- ```startProgress(order, onTick, onDone)```: simulates order progress
+
+- ```cancelOrder(orderId)```: cancels order, frees driver, removes timers
+
+- ```tryAssignPendingOrders()```: scheduler, assigns pending orders as drivers free
+
+- ```snapshot()```: returns current state (orders + drivers)
+
+- ```loadBaseDrivers()```: loads driver JSON, normalizes IDs, sets availability
+
+### Assumptions
+
+- In-memory only (no DB, data resets on restart)
+
+- Drivers assigned fairly with round-robin
+
+- Random progress increments (2–6%) simulate real-time
+
+- Multiple clients stay consistent with Socket.IO broadcasts
+
+- Skips canceled orders in pending queue
+
+- Prevents duplicate orders in pending queue
+
